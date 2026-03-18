@@ -171,7 +171,8 @@ parameter:
     drate: Enumeration type sampling speed
 Info:
 ******************************************************************************/
-void ADS1263_ConfigADC1(ADS1263_GAIN gain, ADS1263_DRATE drate, ADS1263_DELAY delay)
+static void ADS1263_ConfigADC1(ADS1263_GAIN gain, ADS1263_DRATE drate, ADS1263_DELAY delay,
+    ADS1263_ADC1_FILTER filter)
 {
     UBYTE MODE2 = 0x80;             //0x80:PGA bypassed, 0x00:PGA enabled
     MODE2 |= (gain << 4) | drate;
@@ -198,7 +199,7 @@ void ADS1263_ConfigADC1(ADS1263_GAIN gain, ADS1263_DRATE drate, ADS1263_DELAY de
     else
         printf("REG_MODE0 unsuccess \r\n");
     
-    UBYTE MODE1 = 0x84; // Digital Filter; 0x84:FIR, 0x64:Sinc4, 0x44:Sinc3, 0x24:Sinc2, 0x04:Sinc1
+    UBYTE MODE1 = filter;
     ADS1263_WriteReg(REG_MODE1, MODE1); 
     DEV_Delay_ms(1);
     if(ADS1263_Read_data(REG_MODE1) == MODE1)
@@ -214,7 +215,7 @@ parameter:
     drate: Enumeration type sampling speed
 Info:
 ******************************************************************************/
-void ADS1263_ConfigADC2(ADS1263_ADC2_GAIN gain, ADS1263_ADC2_DRATE drate, ADS1263_DELAY delay)
+static void ADS1263_ConfigADC2(ADS1263_ADC2_GAIN gain, ADS1263_ADC2_DRATE drate, ADS1263_DELAY delay)
 {
     UBYTE ADC2CFG = 0x20;               //REF, 0x20:VAVDD and VAVSS, 0x00:+-2.5V
     ADC2CFG |= (drate << 6) | gain;
@@ -241,6 +242,11 @@ Info:
 ******************************************************************************/
 UBYTE ADS1263_init_ADC1(ADS1263_DRATE rate)
 {
+    return ADS1263_init_ADC1_Filter(rate, ADS1263_FILTER_FIR);
+}
+
+UBYTE ADS1263_init_ADC1_Filter(ADS1263_DRATE rate, ADS1263_ADC1_FILTER filter)
+{
     ADS1263_reset();
     if(ADS1263_ReadChipID() == 1) {
         printf("ID Read success \r\n");
@@ -250,7 +256,7 @@ UBYTE ADS1263_init_ADC1(ADS1263_DRATE rate)
         return 1;
     }
     ADS1263_WriteCmd(CMD_STOP1);
-    ADS1263_ConfigADC1(ADS1263_GAIN_1, rate, ADS1263_DELAY_35us);
+    ADS1263_ConfigADC1(ADS1263_GAIN_1, rate, ADS1263_DELAY_35us, filter);
     ADS1263_WriteCmd(CMD_START1);
     return 0;
 }
