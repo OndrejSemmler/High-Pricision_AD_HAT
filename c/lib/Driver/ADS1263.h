@@ -81,6 +81,15 @@ typedef enum
 
 typedef enum
 {
+    ADS1263_REF_INTERNAL = 0x00,
+    ADS1263_REF_AIN0_AIN1 = 0x09,
+    ADS1263_REF_AIN2_AIN3 = 0x12,
+    ADS1263_REF_AIN4_AIN5 = 0x1B,
+    ADS1263_REF_AVDD_AVSS = 0x24,
+}ADS1263_ADC1_REF;
+
+typedef enum
+{
     ADS1263_DELAY_0s    = 0,
     ADS1263_DELAY_8d7us,
     ADS1263_DELAY_17us,
@@ -193,6 +202,10 @@ typedef enum
 
 UBYTE ADS1263_init_ADC1(ADS1263_DRATE rate);
 UBYTE ADS1263_init_ADC1_Filter(ADS1263_DRATE rate, ADS1263_ADC1_FILTER filter);
+UBYTE ADS1263_init_ADC1_Filter_Ref(
+    ADS1263_DRATE rate,
+    ADS1263_ADC1_FILTER filter,
+    ADS1263_ADC1_REF reference);
 UBYTE ADS1263_init_ADC2(ADS1263_ADC2_DRATE rate);
 void ADS1263_SetMode(UBYTE Mode);
 UDOUBLE ADS1263_GetChannalValue(UBYTE Channel);

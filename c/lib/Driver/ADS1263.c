@@ -172,7 +172,7 @@ parameter:
 Info:
 ******************************************************************************/
 static void ADS1263_ConfigADC1(ADS1263_GAIN gain, ADS1263_DRATE drate, ADS1263_DELAY delay,
-    ADS1263_ADC1_FILTER filter)
+    ADS1263_ADC1_FILTER filter, ADS1263_ADC1_REF reference)
 {
     UBYTE MODE2 = 0x80;             //0x80:PGA bypassed, 0x00:PGA enabled
     MODE2 |= (gain << 4) | drate;
@@ -183,7 +183,7 @@ static void ADS1263_ConfigADC1(ADS1263_GAIN gain, ADS1263_DRATE drate, ADS1263_D
     else
         printf("REG_MODE2 unsuccess \r\n");
     
-    UBYTE REFMUX = 0x24;        //0x00:+-2.5V as REF, 0x24:VDD,VSS as REF
+    UBYTE REFMUX = (UBYTE)reference;
     ADS1263_WriteReg(REG_REFMUX, REFMUX);
     DEV_Delay_ms(1);
     if(ADS1263_Read_data(REG_REFMUX) == REFMUX)
@@ -242,10 +242,18 @@ Info:
 ******************************************************************************/
 UBYTE ADS1263_init_ADC1(ADS1263_DRATE rate)
 {
-    return ADS1263_init_ADC1_Filter(rate, ADS1263_FILTER_FIR);
+    return ADS1263_init_ADC1_Filter_Ref(rate, ADS1263_FILTER_FIR, ADS1263_REF_AVDD_AVSS);
 }
 
 UBYTE ADS1263_init_ADC1_Filter(ADS1263_DRATE rate, ADS1263_ADC1_FILTER filter)
+{
+    return ADS1263_init_ADC1_Filter_Ref(rate, filter, ADS1263_REF_AVDD_AVSS);
+}
+
+UBYTE ADS1263_init_ADC1_Filter_Ref(
+    ADS1263_DRATE rate,
+    ADS1263_ADC1_FILTER filter,
+    ADS1263_ADC1_REF reference)
 {
     ADS1263_reset();
     if(ADS1263_ReadChipID() == 1) {
@@ -256,7 +264,7 @@ UBYTE ADS1263_init_ADC1_Filter(ADS1263_DRATE rate, ADS1263_ADC1_FILTER filter)
         return 1;
     }
     ADS1263_WriteCmd(CMD_STOP1);
-    ADS1263_ConfigADC1(ADS1263_GAIN_1, rate, ADS1263_DELAY_35us, filter);
+    ADS1263_ConfigADC1(ADS1263_GAIN_1, rate, ADS1263_DELAY_35us, filter, reference);
     ADS1263_WriteCmd(CMD_START1);
     return 0;
 }
