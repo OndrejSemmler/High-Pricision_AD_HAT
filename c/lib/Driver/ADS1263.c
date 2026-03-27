@@ -242,18 +242,27 @@ Info:
 ******************************************************************************/
 UBYTE ADS1263_init_ADC1(ADS1263_DRATE rate)
 {
-    return ADS1263_init_ADC1_Filter_Ref(rate, ADS1263_FILTER_FIR, ADS1263_REF_AVDD_AVSS);
+    return ADS1263_init_ADC1_Filter_Ref(
+        rate,
+        ADS1263_FILTER_FIR,
+        ADS1263_REF_AVDD_AVSS,
+        ADS1263_DELAY_8d7us);
 }
 
 UBYTE ADS1263_init_ADC1_Filter(ADS1263_DRATE rate, ADS1263_ADC1_FILTER filter)
 {
-    return ADS1263_init_ADC1_Filter_Ref(rate, filter, ADS1263_REF_AVDD_AVSS);
+    return ADS1263_init_ADC1_Filter_Ref(
+        rate,
+        filter,
+        ADS1263_REF_AVDD_AVSS,
+        ADS1263_DELAY_8d7us);
 }
 
 UBYTE ADS1263_init_ADC1_Filter_Ref(
     ADS1263_DRATE rate,
     ADS1263_ADC1_FILTER filter,
-    ADS1263_ADC1_REF reference)
+    ADS1263_ADC1_REF reference,
+    ADS1263_DELAY delay)
 {
     ADS1263_reset();
     if(ADS1263_ReadChipID() == 1) {
@@ -264,7 +273,7 @@ UBYTE ADS1263_init_ADC1_Filter_Ref(
         return 1;
     }
     ADS1263_WriteCmd(CMD_STOP1);
-    ADS1263_ConfigADC1(ADS1263_GAIN_1, rate, ADS1263_DELAY_35us, filter, reference);
+    ADS1263_ConfigADC1(ADS1263_GAIN_1, rate, delay, filter, reference);
     ADS1263_WriteCmd(CMD_START1);
     return 0;
 }

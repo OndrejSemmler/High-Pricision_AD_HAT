@@ -205,7 +205,8 @@ UBYTE ADS1263_init_ADC1_Filter(ADS1263_DRATE rate, ADS1263_ADC1_FILTER filter);
 UBYTE ADS1263_init_ADC1_Filter_Ref(
     ADS1263_DRATE rate,
     ADS1263_ADC1_FILTER filter,
-    ADS1263_ADC1_REF reference);
+    ADS1263_ADC1_REF reference,
+    ADS1263_DELAY delay);
 UBYTE ADS1263_init_ADC2(ADS1263_ADC2_DRATE rate);
 void ADS1263_SetMode(UBYTE Mode);
 UDOUBLE ADS1263_GetChannalValue(UBYTE Channel);
