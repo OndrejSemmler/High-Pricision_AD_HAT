@@ -29,7 +29,41 @@
 ******************************************************************************/
 #include "ADS1263.h"
 
+#include <sys/time.h>
+
 UBYTE ScanMode = 0;
+
+static uint64_t ADS1263_GetTimeUs(void)
+{
+    struct timeval now;
+
+    if(gettimeofday(&now, NULL) != 0) {
+        return 0U;
+    }
+
+    return ((uint64_t)now.tv_sec * 1000000ULL) + (uint64_t)now.tv_usec;
+}
+
+static UDOUBLE ADS1263_ClampElapsedUs(uint64_t elapsed_us)
+{
+    if(elapsed_us > (uint64_t)0xffffffffU) {
+        return (UDOUBLE)0xffffffffU;
+    }
+
+    return (UDOUBLE)elapsed_us;
+}
+
+static int ADS1263_HasTimedOut(uint64_t start_time_us, UDOUBLE timeout_ms, UDOUBLE *elapsed_us)
+{
+    uint64_t now_us = ADS1263_GetTimeUs();
+    uint64_t elapsed = now_us >= start_time_us ? now_us - start_time_us : 0U;
+
+    if(elapsed_us != NULL) {
+        *elapsed_us = ADS1263_ClampElapsedUs(elapsed);
+    }
+
+    return elapsed >= ((uint64_t)timeout_ms * 1000ULL);
+}
 
 /******************************************************************************
 function:   Module reset
@@ -134,6 +168,29 @@ static void ADS1263_WaitDRDY(void)
         }
     }   
     // printf("ADS1263_WaitDRDY Release \r\n");
+}
+
+static ADS1263_CHANNEL_STATUS ADS1263_WaitDRDY_Timeout(
+    UDOUBLE timeout_ms,
+    UDOUBLE *wait_time_us)
+{
+    uint64_t start_time_us = ADS1263_GetTimeUs();
+
+    if(wait_time_us != NULL) {
+        *wait_time_us = 0U;
+    }
+
+    while(DEV_Digital_Read(DEV_DRDY_PIN) != 0) {
+        if(ADS1263_HasTimedOut(start_time_us, timeout_ms, wait_time_us)) {
+            return ADS1263_CHANNEL_STATUS_DRDY_TIMEOUT;
+        }
+    }
+
+    if(wait_time_us != NULL) {
+        (void)ADS1263_HasTimedOut(start_time_us, timeout_ms, wait_time_us);
+    }
+
+    return ADS1263_CHANNEL_STATUS_OK;
 }
 
 /******************************************************************************
@@ -421,6 +478,47 @@ static UDOUBLE ADS1263_Read_ADC1_Data(void)
     return read;
 }
 
+static ADS1263_CHANNEL_STATUS ADS1263_Read_ADC1_Data_Timeout(
+    UDOUBLE timeout_ms,
+    UDOUBLE *Value)
+{
+    UDOUBLE read = 0;
+    UBYTE buf[4] = {0, 0, 0, 0};
+    UBYTE Status, CRC;
+    uint64_t start_time_us;
+
+    if(Value == NULL) {
+        return ADS1263_CHANNEL_STATUS_INVALID_ARGUMENT;
+    }
+
+    DEV_Digital_Write(DEV_CS_PIN, 0);
+    start_time_us = ADS1263_GetTimeUs();
+    do {
+        DEV_SPI_WriteByte(CMD_RDATA1);
+        Status = DEV_SPI_ReadByte();
+        if(ADS1263_HasTimedOut(start_time_us, timeout_ms, NULL)) {
+            DEV_Digital_Write(DEV_CS_PIN, 1);
+            return ADS1263_CHANNEL_STATUS_DATA_TIMEOUT;
+        }
+    }while((Status & 0x40) == 0);
+
+    buf[0] = DEV_SPI_ReadByte();
+    buf[1] = DEV_SPI_ReadByte();
+    buf[2] = DEV_SPI_ReadByte();
+    buf[3] = DEV_SPI_ReadByte();
+    CRC = DEV_SPI_ReadByte();
+    DEV_Digital_Write(DEV_CS_PIN, 1);
+    read |= ((UDOUBLE)buf[0] << 24);
+    read |= ((UDOUBLE)buf[1] << 16);
+    read |= ((UDOUBLE)buf[2] << 8);
+    read |= (UDOUBLE)buf[3];
+    if(ADS1263_Checksum(read, CRC) != 0)
+        printf("ADC1 Data read error! \r\n");
+
+    *Value = read;
+    return ADS1263_CHANNEL_STATUS_OK;
+}
+
 /******************************************************************************
 function:  Read ADC data
 parameter: 
@@ -486,6 +584,43 @@ UDOUBLE ADS1263_GetChannalValue(UBYTE Channel)
     }
     // printf("Get IN%d value success \r\n", Channel);
     return Value;
+}
+
+ADS1263_CHANNEL_STATUS ADS1263_GetChannalValue_Timeout(
+    UBYTE Channel,
+    UDOUBLE timeout_ms,
+    UDOUBLE *Value,
+    UDOUBLE *wait_time_us)
+{
+    ADS1263_CHANNEL_STATUS status;
+
+    if(Value == NULL || timeout_ms == 0U) {
+        return ADS1263_CHANNEL_STATUS_INVALID_ARGUMENT;
+    }
+
+    *Value = 0U;
+    if(wait_time_us != NULL) {
+        *wait_time_us = 0U;
+    }
+
+    if(ScanMode == 0) {
+        if(Channel > 10) {
+            return ADS1263_CHANNEL_STATUS_INVALID_ARGUMENT;
+        }
+        ADS1263_SetChannal(Channel);
+    } else {
+        if(Channel > 4) {
+            return ADS1263_CHANNEL_STATUS_INVALID_ARGUMENT;
+        }
+        ADS1263_SetDiffChannal(Channel);
+    }
+
+    status = ADS1263_WaitDRDY_Timeout(timeout_ms, wait_time_us);
+    if(status != ADS1263_CHANNEL_STATUS_OK) {
+        return status;
+    }
+
+    return ADS1263_Read_ADC1_Data_Timeout(timeout_ms, Value);
 }
 
 /******************************************************************************
