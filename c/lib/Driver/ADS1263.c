@@ -33,6 +33,13 @@
 
 UBYTE ScanMode = 0;
 
+#define ADS1263_POLL_SLEEP_US 50U
+
+static void ADS1263_PollSleep(void)
+{
+    usleep(ADS1263_POLL_SLEEP_US);
+}
+
 static uint64_t ADS1263_GetTimeUs(void)
 {
     struct timeval now;
@@ -184,6 +191,7 @@ static ADS1263_CHANNEL_STATUS ADS1263_WaitDRDY_Timeout(
         if(ADS1263_HasTimedOut(start_time_us, timeout_ms, wait_time_us)) {
             return ADS1263_CHANNEL_STATUS_DRDY_TIMEOUT;
         }
+        ADS1263_PollSleep();
     }
 
     if(wait_time_us != NULL) {
@@ -500,6 +508,7 @@ static ADS1263_CHANNEL_STATUS ADS1263_Read_ADC1_Data_Timeout(
             DEV_Digital_Write(DEV_CS_PIN, 1);
             return ADS1263_CHANNEL_STATUS_DATA_TIMEOUT;
         }
+        ADS1263_PollSleep();
     }while((Status & 0x40) == 0);
 
     buf[0] = DEV_SPI_ReadByte();
